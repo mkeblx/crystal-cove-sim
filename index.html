@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en" class="no-js">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=Edge">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>crystal cove sim</title>
+<meta name="description" content="">
+<link rel="stylesheet" href="http://fonts.googleapis.com/css?family=Roboto:100,300,400,500,700">
+<link rel="stylesheet" href="http://fonts.googleapis.com/css?family=Droid+Sans+Mono">
+<link rel="stylesheet" href="http://fonts.googleapis.com/css?family=Source+Code+Pro:200,300,400,500,700">
+<link rel="stylesheet" href="css/style.css">
+<script src="js/modernizr.js"></script>
+</head>
+<body>
+
+<div id="helper"></div>
+
+<video id="vid" autoplay loop style="display:none"></video>
+
+<div id="cam-view">
+	<div class="btn icon" id="reinit-btn">&#128260;</div>
+	<div id="headtrackerMessage"></div>
+	<canvas id="compare" width="320" height="240" style="display:none"></canvas>
+	<canvas id="overlay" width="320" height="240"></canvas>
+	<canvas id="debug"   width="320" height="240"></canvas>
+	<div id="tracking-info">waiting for data&hellip;</div>
+</div>
+
+<div id="gUMMessage"><!-- checking capabilities&hellip;--></div>
+
+<div id="intro">
+<div id="intro-container">
+	<h1>crystal cove sim</h1>
+
+	<p id="intro-msg">Allow access to webcam to start</p>
+
+	<div class="btn" id="start">start</div>
+
+	<div id="modes" class="hide">
+		<div class="btn selected">camera</div>
+		<div class="btn">oculus</div>
+	</div>
+</div>
+</div>
+
+<div id="meter-container">
+</div>
+
+<div id="sidebar" class="hide">
+	<div id="status"></div>
+</div>
+
+<script scr="js/console.js"></script>
+<script src="js/jquery.min.js"></script>
+<script src="js/tween.min.js"></script>
+<script src="js/three.min.js"></script>
+<script src="js/libs/stats.min.js"></script>
+<script src="js/fpsmeter.js"></script>
+<script src="js/fpsmeter.theme.oculus.js"></script>
+<script src="js/headtrackr.js"></script>
+<script src="js/main.js"></script>
+
+</body>
+</html>
