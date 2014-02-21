@@ -14,13 +14,21 @@ var currDist = null;
 
 var head = {x: 0, y: 0, z: 0, angle: 90};
 
+var floor, ceiling, room;
+
 var cc;
+
+var ccLEDs = [
+	//todo: add 40 positioned LEDs
+	// {p: [x,y,z], n: [0,0,0]}
+];
 
 var camera, cameraHelper;
 
 var origCamDist = 130;
 
 var webcamReady = false;
+var started = false;
 
 var clock = new THREE.Clock();
 var controls;
@@ -56,24 +64,26 @@ function init() {
 
 	controls = new THREE.OrbitControls(camera);
 
+	addCCPrototype();
 
 	addLights();
 
 	addGround();
 
-	addCCPrototype();
-
 	addStats();
 
 	setupUI();
 
-	setupTracking();
+	animate();
 
+	setupHeadTracking();
+
+	setupIRTracking();
 
 	window.addEventListener('resize', onWindowResize, false);
 }
 
-function setupTracking() {
+function setupHeadTracking() {
 	var videoInput = document.getElementById('vid');
 	var canvasInput = document.getElementById('compare');
 	var canvasOverlay = document.getElementById('overlay')
@@ -133,7 +143,10 @@ function setupTracking() {
 			if (ev.status == 'found') {
 				webcamReady = true;
 				$('#status-led').show();
-				$('#intro-msg').html('everything looks good');
+				if (!started) {
+					$('#intro-msg').html('everything looks good');
+					$('#start').addClass('active');
+				}
 			} else if (ev.status == 'lost' || ev.status == 'redetecting') {
 				webcamReady = false;
 				$('#status-led').hide();
@@ -179,6 +192,10 @@ function setupTracking() {
 
 }
 
+function setupIRTracking() {
+
+}
+
 function updateTrackingUI() {
 	var pcs = ['x:', head.x, ' y:', head.y, 'z: ', head.z];
 	var dataStr = pcs.join(' ');
@@ -212,11 +229,11 @@ function setupUI() {
 		if (!webcamReady) {
 			console.log('webcam not enabled');
 		} else {
+			started = true;
 			$('#intro').fadeOut(500, function(ev){
-				$('#intro').remove();
+				$(this).remove();
 				$helper.remove();
 			});
-			animate();
 		}
 	});
 
@@ -307,6 +324,60 @@ function addLights() {
 }
 
 function addGround() {
+	var planeTexture = new THREE.Texture( generateTexture(0) );
+	planeTexture.wrapS = THREE.RepeatWrapping;
+	planeTexture.wrapT = THREE.RepeatWrapping;
+	planeTexture.repeat.x = 2;
+	planeTexture.repeat.y = 2;			
+	planeTexture.needsUpdate = true;
+
+	var planeGeometry = new THREE.CubeGeometry(1024,1024,1024);
+	planeMaterial = new THREE.MeshPhongMaterial({map: planeTexture});
+	planeMaterial.side = THREE.BackSide;
+	floor = new THREE.Mesh(planeGeometry, planeMaterial);
+	floor.rotation.x = -Math.PI/2;
+	floor.position.y = 300;
+
+	floor.castShadow = false;
+	floor.receiveShadow = true;
+
+	//scene.add(floor);
+
+	ceiling = new THREE.Mesh(planeGeometry, planeMaterial);
+	ceiling.rotation.x = -Math.PI/2;
+	ceiling.rotation.y = -Math.PI;
+	ceiling.position.y = 0;
+	scene.add(ceiling);
+}
+
+function generateTexture(minus, width, length) {
+	var min = minus || false;
+	var w = width || 2;
+	var l = length || 14;
+
+	var canvas = document.createElement('canvas');
+	canvas.width = 512;
+	canvas.height = 512;
+
+	var context = canvas.getContext('2d');
+
+	context.fillStyle="#000000";
+	context.fillRect(0,0,512,512);
+
+	context.fillStyle="#ffffff";
+
+	for (var x = 0; x < 16; x++) {
+		for (var y = 0; y < 16; y++) {
+			context.fillRect(32*x,32*y+6,l,w);
+			if (min && (y+x)%2 == 0) {
+				continue;
+			}
+			context.fillRect(32*x+6,32*y,w,l);
+
+		};
+	};
+
+	return canvas;
 
 }
 
@@ -324,7 +395,6 @@ function addCCPrototype() {
 
 		var s = 20;
 		cc.scale.set(s,s,s);
-		//cc.updateMatrix();
 
 		scene.add(cc);
 	} );
@@ -360,7 +430,9 @@ function animate() {
 	cc.position.z = -head.z*f;
 	*/
 
-	if(cc)
+	console.log(cc);
+
+	if(webcamReady && started)
 		cc.rotation.z = Math.PI/2 - head.angle;
 	
 	//camera.lookAt(scene.position);

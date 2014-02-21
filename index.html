@@ -18,14 +18,19 @@
 
 <video id="vid" autoplay loop style="display:none"></video>
 
-<div id="cam-view">
+<div id="cam-view" class="cam-view">
 	<div class="btn icon" id="reinit-btn">&#128260;</div>
 	<div id="headtrackerMessage"></div>
 	<div id="status-led"></div>
 	<canvas id="compare" width="320" height="240" style="display:none"></canvas>
 	<canvas id="overlay" width="320" height="240"></canvas>
 	<canvas id="debug"   width="320" height="240"></canvas>
-	<div id="tracking-info">waiting for data&hellip;</div>
+	<div id="tracking-info" class="info-bar">waiting for data&hellip;</div>
+</div>
+
+<div id="ir-cam-view" class="cam-view">
+	<canvas id="ir-cam" width="320" height="240"></canvas>
+	<div id="ir-tracking-info" class="info-bar">ir tracking data&hellip;</div>
 </div>
 
 <div id="gUMMessage"><!-- checking capabilities&hellip;--></div>
