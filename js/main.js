@@ -1,22 +1,29 @@
 
 var scene, renderer;
-var mesh;
 
 var stats, meter;
+var manager;
+
+var debug = 1;
 
 var htracker;
 
 var origDist = null;
 var currDist = null;
 
+
 var head = {x: 0, y: 0, z: 0, angle: 90};
 
 var cc;
 
-var camera;
+var camera, cameraHelper;
+
 var origCamDist = 130;
 
 var webcamReady = false;
+
+var clock = new THREE.Clock();
+var controls;
 
 var theta = 0;
 
@@ -29,7 +36,7 @@ function pre() {
 function init() {
 
 	renderer = new THREE.WebGLRenderer({ antialias: true });
-	renderer.setSize( window.innerWidth, window.innerHeight );
+	renderer.setSize(window.innerWidth, window.innerHeight);
 	renderer.shadowMapEnabled = true;
 	renderer.shadowMapSoft = true;
 	renderer.shadowMapWidth = 2048;
@@ -38,13 +45,17 @@ function init() {
 
 	document.body.appendChild(renderer.domElement);
 
+	scene = new THREE.Scene();
 
-	camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 1, 10000 );
+	camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 10000);
 	camera.position.z = origCamDist;
 	camera.position.y = 0;
 
+	cameraHelper = new THREE.CameraHelper(camera);
+	//scene.add(cameraHelper);
 
-	scene = new THREE.Scene();
+	controls = new THREE.OrbitControls(camera);
+
 
 	addLights();
 
@@ -58,10 +69,8 @@ function init() {
 
 	setupTracking();
 
-	animate();
 
-
-	window.addEventListener( 'resize', onWindowResize, false );
+	window.addEventListener('resize', onWindowResize, false);
 }
 
 function setupTracking() {
@@ -117,11 +126,18 @@ function setupTracking() {
 
 			mediamsg.html(msg);
 		} else if (ev.status in statusMessages) {
-			webcamReady = true;
-			$('#intro-msg').html('everything looks good');
 			var msg = statusMessages[ev.status];
 			console.log(ev.status, msg);
 			htmsg.html(msg);
+
+			if (ev.status == 'found') {
+				webcamReady = true;
+				$('#status-led').show();
+				$('#intro-msg').html('everything looks good');
+			} else if (ev.status == 'lost' || ev.status == 'redetecting') {
+				webcamReady = false;
+				$('#status-led').hide();
+			}
 		}
 
 	}, true);
@@ -197,7 +213,10 @@ function setupUI() {
 			console.log('webcam not enabled');
 		} else {
 			$('#intro').fadeOut(500, function(ev){
-				$('#intro').remove(); });
+				$('#intro').remove();
+				$helper.remove();
+			});
+			animate();
 		}
 	});
 
@@ -220,30 +239,30 @@ function setupUI() {
 function addStats() {
 
 var config = {
-    interval:  100,     // Update interval in milliseconds.
-    smoothing: 10,      // Spike smoothing strength. 1 means no smoothing.
-    show:      'fps',   // Whether to show 'fps', or 'ms' = frame duration in milliseconds.
-    toggleOn:  'click', // Toggle between show 'fps' and 'ms' on this event.
-    decimals:  0,       // Number of decimals in FPS number. 1 = 59.9, 2 = 59.94, ...
-    maxFps:    60,      // Max expected FPS value.
-    threshold: 100,     // Minimal tick reporting interval in milliseconds.
+	interval:  100,     // Update interval in milliseconds.
+	smoothing: 10,      // Spike smoothing strength. 1 means no smoothing.
+	show:      'fps',   // Whether to show 'fps', or 'ms' = frame duration in milliseconds.
+	toggleOn:  'click', // Toggle between show 'fps' and 'ms' on this event.
+	decimals:  0,       // Number of decimals in FPS number. 1 = 59.9, 2 = 59.94, ...
+	maxFps:    60,      // Max expected FPS value.
+	threshold: 100,     // Minimal tick reporting interval in milliseconds.
 
-    // Meter position
-    position: 'absolute', // Meter position.
-    zIndex:   10,         // Meter Z index.
-    left:     'auto',      // Meter left offset.
-    top:      'auto',      // Meter top offset.
-    right:    '0',     // Meter right offset.
-    bottom:   '0',     // Meter bottom offset.
-    margin:   '0 0 0 0',  // Meter margin. Helps with centering the counter when left: 50%;
+	// Meter position
+	position: 'absolute', // Meter position.
+	zIndex:   10,         // Meter Z index.
+	left:     'auto',      // Meter left offset.
+	top:      'auto',      // Meter top offset.
+	right:    '0',     // Meter right offset.
+	bottom:   '0',     // Meter bottom offset.
+	margin:   '0 0 0 0',  // Meter margin. Helps with centering the counter when left: 50%;
 
-    // Theme
-    theme: 'oculus', // Meter theme. Build in: 'dark', 'light', 'transparent', 'colorful'.
-    heat:  0,      // Allow themes to use coloring by FPS heat. 0 FPS = red, maxFps = green.
+	// Theme
+	theme: 'oculus', // Meter theme. Build in: 'dark', 'light', 'transparent', 'colorful'.
+	heat:  0,      // Allow themes to use coloring by FPS heat. 0 FPS = red, maxFps = green.
 
-    // Graph
-    graph:   1, // Whether to show history graph.
-    history: 20 // How many history states to show in a graph.
+	// Graph
+	graph:   1, // Whether to show history graph.
+	history: 20 // How many history states to show in a graph.
 };
 
 	meter = new FPSMeter($('#meter-container')[0], config);
@@ -253,30 +272,38 @@ var config = {
 }
 
 function addLights() {
-	var light = new THREE.AmbientLight(0x404040);
+	var light = new THREE.AmbientLight(0xffffff);
 	scene.add(light);
 
-	var pointLight = new THREE.PointLight(0xFFFFFF);
+	var pl = new THREE.PointLight(0x3878ff);
 
-	pointLight.position.x = 100;
-	pointLight.position.y = 20;
-	pointLight.position.z = 100;
+	pl.position.x = 100;
+	pl.position.y = 200;
+	pl.position.z = 100;
 
-	//pointLight.castShadow = true;
-	//pointLight.shadowDarkness = 0.2;
+	window.pl = pl;
 
-	scene.add(pointLight);
+	scene.add(pl);
 
 	var dl = new THREE.DirectionalLight(0xFFFFFF);
 
-	dl.position.x = 100;
-	dl.position.y = 200;
+	dl.position.x = -200;
+	dl.position.y = -200;
 	dl.position.z = 100;
 
-	dl.castShadow = true;
-	dl.shadowDarkness = 0.2;
+	window.dl = dl;
 
 	scene.add(dl);
+
+	var dl = new THREE.DirectionalLight(0xFFFFFF);
+
+	dl.position.x = 200;
+	dl.position.y = 50;
+	dl.position.z = 200;
+
+	window.dl = dl;
+
+	scene.add(dl);	
 }
 
 function addGround() {
@@ -284,30 +311,38 @@ function addGround() {
 }
 
 function addCCPrototype() {
-	var geo = new THREE.BoxGeometry(100, 50, 50);
+	manager = new THREE.LoadingManager();
 
-	var texture = THREE.ImageUtils.loadTexture( 'textures/crate.gif' );
-	texture.anisotropy = renderer.getMaxAnisotropy();
+	manager.onProgress = function(item, loaded, total) {
+		console.log(item, loaded, total);
+	};
 
-	var mat = new THREE.MeshPhongMaterial({ map: texture });
+	var loader = new THREE.ColladaLoader();
+	loader.load('models/cc.dae', function colladaReady(collada) {
 
-	cc = new THREE.Mesh(geo, mat);
+		cc = collada.scene;
 
-	scene.add(cc);
+		var s = 20;
+		cc.scale.set(s,s,s);
+		//cc.updateMatrix();
 
-	cc.position.z = 10;
+		scene.add(cc);
+	} );
+
 }
 
 function onWindowResize() {
 	camera.aspect = window.innerWidth / window.innerHeight;
 	camera.updateProjectionMatrix();
 
-	renderer.setSize( window.innerWidth, window.innerHeight );
+	renderer.setSize(window.innerWidth, window.innerHeight);
+	//controls.handleResize();
 }
 
 function animate() {
-	requestAnimationFrame( animate );
+	requestAnimationFrame(animate);
 	
+	//controls.update( clock.getDelta() );
 	meter.tickStart();
 	
 	theta += 0.004;
@@ -319,21 +354,21 @@ function animate() {
 	//hack, need to figure out calibration scheme
 	var f = 4;
 
+	/*
 	cc.position.x = head.x*f;
 	cc.position.y = head.y*f;
 	cc.position.z = -head.z*f;
+	*/
 
-	cc.rotation.z = Math.PI/2 - head.angle;
-
-	//camera.position.x = camDist * Math.sin(theta);
-	//camera.position.z = camDist * Math.cos(theta);
+	if(cc)
+		cc.rotation.z = Math.PI/2 - head.angle;
 	
 	//camera.lookAt(scene.position);
 	//camera.rotation.z = headAngle - Math.PI/2;
 
 	TWEEN.update();
 
-	renderer.render( scene, camera );
+	renderer.render(scene, camera);
 
 	//stats.update();
 	meter.tick();
