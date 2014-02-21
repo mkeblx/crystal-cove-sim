@@ -21,6 +21,7 @@
 <div id="cam-view">
 	<div class="btn icon" id="reinit-btn">&#128260;</div>
 	<div id="headtrackerMessage"></div>
+	<div id="status-led"></div>
 	<canvas id="compare" width="320" height="240" style="display:none"></canvas>
 	<canvas id="overlay" width="320" height="240"></canvas>
 	<canvas id="debug"   width="320" height="240"></canvas>
@@ -55,6 +56,10 @@
 <script src="js/jquery.min.js"></script>
 <script src="js/tween.min.js"></script>
 <script src="js/three.min.js"></script>
+<script src="js/controls/OrbitControls.js"></script>
+<script src="js/controls/FirstPersonControls.js"></script>
+<script src="js/loaders/ColladaLoader.js"></script>
+<script src="js/loaders/OBJLoader.js"></script>
 <script src="js/libs/stats.min.js"></script>
 <script src="js/fpsmeter.js"></script>
 <script src="js/fpsmeter.theme.oculus.js"></script>
