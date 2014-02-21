@@ -1,5 +1,5 @@
 
-var scene, renderer;
+var scene, renderer, composer;
 
 var stats, meter;
 var manager;
@@ -14,7 +14,8 @@ var currDist = null;
 
 var head = {x: 0, y: 0, z: 0, angle: 90};
 
-var floor, ceiling, room;
+var floor;
+var floorH = -100;
 
 var cc;
 
@@ -25,7 +26,7 @@ var ccLEDs = [
 
 var camera, cameraHelper;
 
-var origCamDist = 130;
+var origCamDist = 200;
 
 var webcamReady = false;
 var started = false;
@@ -34,6 +35,8 @@ var clock = new THREE.Clock();
 var controls;
 
 var theta = 0;
+var BG_COLOR = 0xcccccc;
+
 
 pre();
 
@@ -51,28 +54,39 @@ function init() {
 	renderer.shadowMapHeight = 2048;
 	renderer.shadowMapType = THREE.PCFSoftShadowMap;
 
+	renderer.setClearColor(BG_COLOR, 0);
+
 	document.body.appendChild(renderer.domElement);
 
 	scene = new THREE.Scene();
+	scene.fog = new THREE.FogExp2( BG_COLOR, 0.001 );
 
-	camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 10000);
+	if (debug) {
+		var axes = new THREE.AxisHelper(30);
+		axes.position.y = floorH+1;
+		scene.add(axes);
+	}
+
+	camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 10000);
 	camera.position.z = origCamDist;
 	camera.position.y = 0;
 
-	cameraHelper = new THREE.CameraHelper(camera);
+	if (debug) cameraHelper = new THREE.CameraHelper(camera);
 	//scene.add(cameraHelper);
 
 	controls = new THREE.OrbitControls(camera);
 
 	addCCPrototype();
 
-	addLights();
-
 	addGround();
+
+	addLights();
 
 	addStats();
 
 	setupUI();
+
+	setupPostprocessing();
 
 	animate();
 
@@ -81,6 +95,26 @@ function init() {
 	setupIRTracking();
 
 	window.addEventListener('resize', onWindowResize, false);
+}
+
+function setupPostprocessing() {
+	composer = new THREE.EffectComposer( renderer );
+	var rp = new THREE.RenderPass( scene, camera );
+
+	composer.addPass( rp );
+
+	var effectFXAA = new THREE.ShaderPass(THREE.FXAAShader);
+	var width = window.innerWidth;
+	var height = window.innerHeight;
+	effectFXAA.uniforms['resolution'].value.set(1 / width, 1 / height);
+	composer.addPass(effectFXAA);
+
+	var vignettePass = new THREE.ShaderPass( THREE.VignetteShader );
+	vignettePass.uniforms[ "darkness" ].value = 0.9;
+	vignettePass.uniforms[ "offset" ].value = 0.5;
+	vignettePass.renderToScreen = true;
+
+	composer.addPass( vignettePass );
 }
 
 function setupHeadTracking() {
@@ -289,6 +323,38 @@ var config = {
 }
 
 function addLights() {
+	var ambientLight = new THREE.AmbientLight(0x404040);
+	scene.add( ambientLight );
+
+	var dl = new THREE.DirectionalLight(0xffffff);
+	dl.position.x = 400;
+	dl.position.y = 400;
+	dl.position.z = 300;
+
+	dl.shadowMapHeight = dl.shadowMapWidth = 1024;
+
+	dl.shadowCameraLeft = -128;
+	dl.shadowCameraRight = 128;
+	dl.shadowCameraTop = 128;
+	dl.shadowCameraBottom = -128;
+
+	dl.castShadow = true;
+	dl.shadowDarkness = 0.2;
+
+	dl.shadowCameraVisible = true;
+
+	scene.add(dl);
+
+	var directionalLight = new THREE.DirectionalLight(0x808080);
+	directionalLight.position.x = - 1;
+	directionalLight.position.y = 1;
+	directionalLight.position.z = - 0.75;
+	directionalLight.position.normalize();
+
+	scene.add(directionalLight);
+
+	return;
+
 	var light = new THREE.AmbientLight(0xffffff);
 	scene.add(light);
 
@@ -324,61 +390,60 @@ function addLights() {
 }
 
 function addGround() {
-	var planeTexture = new THREE.Texture( generateTexture(0) );
-	planeTexture.wrapS = THREE.RepeatWrapping;
-	planeTexture.wrapT = THREE.RepeatWrapping;
-	planeTexture.repeat.x = 2;
-	planeTexture.repeat.y = 2;			
-	planeTexture.needsUpdate = true;
+	var floorMaterial = new THREE.MeshLambertMaterial({
+		color: BG_COLOR,
+		side: THREE.DoubleSide });
 
-	var planeGeometry = new THREE.CubeGeometry(1024,1024,1024);
-	planeMaterial = new THREE.MeshPhongMaterial({map: planeTexture});
-	planeMaterial.side = THREE.BackSide;
-	floor = new THREE.Mesh(planeGeometry, planeMaterial);
-	floor.rotation.x = -Math.PI/2;
-	floor.position.y = 300;
+	var floorGeometry = new THREE.CircleGeometry( 10*200, 200, 0, Math.PI * 2 );
 
-	floor.castShadow = false;
+	var floor = new THREE.Mesh(floorGeometry, floorMaterial);
+	floor.rotation.x = 90*(Math.PI/180);
+	floor.position.y = floorH;
 	floor.receiveShadow = true;
 
-	//scene.add(floor);
+	scene.add(floor);
 
-	ceiling = new THREE.Mesh(planeGeometry, planeMaterial);
-	ceiling.rotation.x = -Math.PI/2;
-	ceiling.rotation.y = -Math.PI;
-	ceiling.position.y = 0;
-	scene.add(ceiling);
+	var grid = makeGrid(20);
+	grid.position.y = floorH+1;
+	scene.add(grid);
 }
 
-function generateTexture(minus, width, length) {
-	var min = minus || false;
-	var w = width || 2;
-	var l = length || 14;
+function makeGrid(n) {
+	var gridSize = 40;
 
-	var canvas = document.createElement('canvas');
-	canvas.width = 512;
-	canvas.height = 512;
+	var tW = gridSize * n;
+	var tH = gridSize * n;
 
-	var context = canvas.getContext('2d');
+	var size = n/2*gridSize, step = gridSize;
 
-	context.fillStyle="#000000";
-	context.fillRect(0,0,512,512);
+	var geometry = new THREE.Geometry();
 
-	context.fillStyle="#ffffff";
+	for ( var i = - size; i <= size; i += step ) {
+		geometry.vertices.push( new THREE.Vector3( - size, 0, i ) );
+		geometry.vertices.push( new THREE.Vector3(   size, 0, i ) );
 
-	for (var x = 0; x < 16; x++) {
-		for (var y = 0; y < 16; y++) {
-			context.fillRect(32*x,32*y+6,l,w);
-			if (min && (y+x)%2 == 0) {
-				continue;
-			}
-			context.fillRect(32*x+6,32*y,w,l);
+		geometry.vertices.push( new THREE.Vector3( i, 0, - size ) );
+		geometry.vertices.push( new THREE.Vector3( i, 0,   size ) );
+	}
 
-		};
-	};
+	var material = new THREE.LineBasicMaterial({
+		color: 0xdddddd,
+		linewidth: 2,
+		transparent: false });
 
-	return canvas;
+	var line = new THREE.Line(geometry, material);
+	line.type = THREE.LinePieces;
 
+	return line;
+}
+
+function setMaterial(node, material) {
+	node.material = material;
+	if (node.children) {
+	  for (var i = 0; i < node.children.length; i++) {
+	    setMaterial(node.children[i], material);
+	  }
+	}
 }
 
 function addCCPrototype() {
@@ -390,14 +455,47 @@ function addCCPrototype() {
 
 	var loader = new THREE.ColladaLoader();
 	loader.load('models/cc.dae', function colladaReady(collada) {
-
 		cc = collada.scene;
+
+		var mat = new THREE.MeshPhongMaterial({
+			color: 0x000000,
+			ambient: 0x111111,
+			emissive: 0x000000,
+			specular: 0xffffff,
+			shininess: 10,
+			side: THREE.DoubleSide });
+
+		var parameters = {
+			color:  "#000000", // color (change "#" to "0x")
+			colorA: "#000000", // color (change "#" to "0x")
+			colorE: "#000000", // color (change "#" to "0x")
+			colorS: "#ffffff", // color (change "#" to "0x")
+			shininess: 10
+		};
+
+/*		if (mat.ambient)
+			mat.ambient.setHex( parameters.colorA.replace("#", "0x") );
+		if (mat.emissive)
+			mat.emissive.setHex( parameters.colorE.replace("#", "0x") );
+		if (mat.specular)
+			mat.specular.setHex( parameters.colorS.replace("#", "0x") ); 
+		if (mat.shininess)
+			mat.shininess = parameters.shininess;*/
+
+		cc.traverse(function(child) {
+			setMaterial(child, mat);
+
+			child.castShadow = true;
+			child.receiveShadow = false;
+		});
+
+		console.log(cc);
 
 		var s = 20;
 		cc.scale.set(s,s,s);
 
 		scene.add(cc);
-	} );
+	});
 
 }
 
@@ -430,8 +528,6 @@ function animate() {
 	cc.position.z = -head.z*f;
 	*/
 
-	console.log(cc);
-
 	if(webcamReady && started)
 		cc.rotation.z = Math.PI/2 - head.angle;
 	
@@ -440,7 +536,8 @@ function animate() {
 
 	TWEEN.update();
 
-	renderer.render(scene, camera);
+	//renderer.render(scene, camera);
+	composer.render();
 
 	//stats.update();
 	meter.tick();

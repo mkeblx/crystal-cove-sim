@@ -15,7 +15,7 @@ FPSMeter.theme.oculus = {
         height: "30px",
         lineHeight: "30px",
         textAlign: "right",
-        background: "rgba(255,255,255,0.05)",
+        background: "rgba(0,0,0,0.2)",
         border: "1px solid #ccc",
         borderColor: "rgba(0,0,0,0.1)",
         color: "#fff",

@@ -52,7 +52,7 @@
 
 body {
 	margin: 0px;
-	background-color: #000000;
+	background-color: #ffffff;
 	overflow: hidden;
 	font-family: 'Source Code Pro', Arial, sans-serif;
 	/*font-family: 'Droid Sans Mono';*/
@@ -101,7 +101,7 @@ body {
 	background-color: #3878ff;
 	border-radius: 50%;
 	position: absolute;
-	bottom: 12px;
+	top: 10px;
 	left: 10px;
 	z-index: 10100;
 	display: none;
@@ -150,7 +150,7 @@ body {
 
 #headtrackerMessage {
 	position: absolute;
-	top: 0;
+	bottom: 4px;
 	left: 0;
 	z-index: 10009;
 	color: #fff;
