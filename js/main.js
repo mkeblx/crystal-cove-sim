@@ -15,18 +15,26 @@ var currDist = null;
 var head = {x: 0, y: 0, z: 0, angle: 90};
 
 var floor;
-var floorH = -100;
+var floorH = -200;
 
 var cc;
 
 var ccLEDs = [
+	{p: [100,0,0]},
+	{p: [-100,0,0]}
 	//todo: add 40 positioned LEDs
 	// {p: [x,y,z], n: [0,0,0]}
 ];
 
-var camera, cameraHelper;
+var camera;
 
-var origCamDist = 200;
+var ccRenderer;
+var ccCamera, ccCameraHelper;
+var ccCamDist = 500;
+var ccScene;
+var _cc;
+
+var origCamDist = 300;
 
 var webcamReady = false;
 var started = false;
@@ -59,24 +67,24 @@ function init() {
 	document.body.appendChild(renderer.domElement);
 
 	scene = new THREE.Scene();
-	scene.fog = new THREE.FogExp2( BG_COLOR, 0.001 );
+	scene.fog = new THREE.FogExp2( BG_COLOR, 0.0005 );
 
 	if (debug) {
 		var axes = new THREE.AxisHelper(30);
-		axes.position.y = floorH+1;
+		axes.position.y = floorH+2;
 		scene.add(axes);
 	}
 
-	camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 10000);
+	camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 10, 10000);
 	camera.position.z = origCamDist;
 	camera.position.y = 0;
 
-	if (debug) cameraHelper = new THREE.CameraHelper(camera);
-	//scene.add(cameraHelper);
-
 	controls = new THREE.OrbitControls(camera);
+	controls.maxPolarAngle = Math.PI/2;
 
 	addCCPrototype();
+
+	setupCCCamera();
 
 	addGround();
 
@@ -226,8 +234,58 @@ function setupHeadTracking() {
 
 }
 
-function setupIRTracking() {
+function setupCCCamera() {
+	ccScene = new THREE.Scene();
 
+	var W = 320, H = 240;
+	ccRenderer = new THREE.WebGLRenderer({
+		canvas: document.getElementById('ir-cam'),
+		antialias: true });
+	ccRenderer.setSize(320, 240);
+	ccRenderer.setClearColor(0x000000, 0);
+
+	//document.body.appendChild(renderer.domElement);
+
+	ccCamera = new THREE.PerspectiveCamera(50, W/H, 10, 1000);
+	ccCamera.position.z = ccCamDist;
+	ccScene.add(ccCamera);
+
+	var leds = makeCCLEDs();
+
+	_cc = leds;
+
+	ccScene.add(leds);
+
+	var ccCam = new THREE.PerspectiveCamera(50, W/H, 10, 1000);
+	ccCam.position.z = ccCamDist;
+	scene.add(ccCam);
+
+	ccCameraHelper = new THREE.CameraHelper(ccCam);
+	scene.add(ccCameraHelper);
+}
+
+function makeCCLEDs() {
+	var container = new THREE.Object3D();
+
+	var color = 0xffffff;
+	var mat = new THREE.MeshBasicMaterial({color: color});
+	
+	var geo = new THREE.SphereGeometry(30, 12, 12);
+
+	for (var i = 0, len = ccLEDs.length; i < len; i++) {
+		var led = ccLEDs[i];
+		var p = led.p;
+
+		var l = new THREE.Mesh(geo, mat);
+		l.position.set(p[0], p[1], p[2]);
+		container.add(l);
+	}
+
+	return container;
+}
+
+function setupIRTracking() {
+	//todo: 
 }
 
 function updateTrackingUI() {
@@ -289,32 +347,32 @@ function setupUI() {
 
 function addStats() {
 
-var config = {
-	interval:  100,     // Update interval in milliseconds.
-	smoothing: 10,      // Spike smoothing strength. 1 means no smoothing.
-	show:      'fps',   // Whether to show 'fps', or 'ms' = frame duration in milliseconds.
-	toggleOn:  'click', // Toggle between show 'fps' and 'ms' on this event.
-	decimals:  0,       // Number of decimals in FPS number. 1 = 59.9, 2 = 59.94, ...
-	maxFps:    60,      // Max expected FPS value.
-	threshold: 100,     // Minimal tick reporting interval in milliseconds.
+	var config = {
+		interval:  100,     // Update interval in milliseconds.
+		smoothing: 10,      // Spike smoothing strength. 1 means no smoothing.
+		show:      'fps',   // Whether to show 'fps', or 'ms' = frame duration in milliseconds.
+		toggleOn:  'click', // Toggle between show 'fps' and 'ms' on this event.
+		decimals:  0,       // Number of decimals in FPS number. 1 = 59.9, 2 = 59.94, ...
+		maxFps:    60,      // Max expected FPS value.
+		threshold: 100,     // Minimal tick reporting interval in milliseconds.
 
-	// Meter position
-	position: 'absolute', // Meter position.
-	zIndex:   10,         // Meter Z index.
-	left:     'auto',      // Meter left offset.
-	top:      'auto',      // Meter top offset.
-	right:    '0',     // Meter right offset.
-	bottom:   '0',     // Meter bottom offset.
-	margin:   '0 0 0 0',  // Meter margin. Helps with centering the counter when left: 50%;
+		// Meter position
+		position: 'absolute', // Meter position.
+		zIndex:   10,         // Meter Z index.
+		left:     'auto',      // Meter left offset.
+		top:      'auto',      // Meter top offset.
+		right:    '0',     // Meter right offset.
+		bottom:   '0',     // Meter bottom offset.
+		margin:   '0 0 0 0',  // Meter margin. Helps with centering the counter when left: 50%;
 
-	// Theme
-	theme: 'oculus', // Meter theme. Build in: 'dark', 'light', 'transparent', 'colorful'.
-	heat:  0,      // Allow themes to use coloring by FPS heat. 0 FPS = red, maxFps = green.
+		// Theme
+		theme: 'oculus', // Meter theme. Build in: 'dark', 'light', 'transparent', 'colorful'.
+		heat:  0,      // Allow themes to use coloring by FPS heat. 0 FPS = red, maxFps = green.
 
-	// Graph
-	graph:   1, // Whether to show history graph.
-	history: 20 // How many history states to show in a graph.
-};
+		// Graph
+		graph:   1, // Whether to show history graph.
+		history: 20 // How many history states to show in a graph.
+	};
 
 	meter = new FPSMeter($('#meter-container')[0], config);
 
@@ -341,7 +399,7 @@ function addLights() {
 	dl.castShadow = true;
 	dl.shadowDarkness = 0.2;
 
-	dl.shadowCameraVisible = true;
+	if (debug && 0) dl.shadowCameraVisible = true;
 
 	scene.add(dl);
 
@@ -394,7 +452,7 @@ function addGround() {
 		color: BG_COLOR,
 		side: THREE.DoubleSide });
 
-	var floorGeometry = new THREE.CircleGeometry( 10*200, 200, 0, Math.PI * 2 );
+	var floorGeometry = new THREE.CircleGeometry( 30*200, 200, 0, Math.PI * 2 );
 
 	var floor = new THREE.Mesh(floorGeometry, floorMaterial);
 	floor.rotation.x = 90*(Math.PI/180);
@@ -403,7 +461,7 @@ function addGround() {
 
 	scene.add(floor);
 
-	var grid = makeGrid(20);
+	var grid = makeGrid(30);
 	grid.position.y = floorH+1;
 	scene.add(grid);
 }
@@ -428,7 +486,7 @@ function makeGrid(n) {
 
 	var material = new THREE.LineBasicMaterial({
 		color: 0xdddddd,
-		linewidth: 2,
+		linewidth: 1,
 		transparent: false });
 
 	var line = new THREE.Line(geometry, material);
@@ -528,16 +586,24 @@ function animate() {
 	cc.position.z = -head.z*f;
 	*/
 
-	if(webcamReady && started)
+	if (webcamReady && started) {
 		cc.rotation.z = Math.PI/2 - head.angle;
+		_cc.rotation.z = cc.rotation.z;
+	}
 	
 	//camera.lookAt(scene.position);
 	//camera.rotation.z = headAngle - Math.PI/2;
 
 	TWEEN.update();
 
-	//renderer.render(scene, camera);
-	composer.render();
+	renderer.render(scene, camera);
+	
+	if(ccRenderer) {
+		ccRenderer.render(ccScene, ccCamera);
+		//console.log('cc render');
+	}
+
+	//composer.render();
 
 	//stats.update();
 	meter.tick();
