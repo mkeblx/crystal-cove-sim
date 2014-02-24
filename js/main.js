@@ -1,48 +1,39 @@
 
-var scene, renderer, composer;
+var scene, camera, renderer, composer;
 
 var stats, meter;
 var manager;
 
+var clock = new THREE.Clock();
+var controls;
+
 var debug = 1;
 
 var htracker;
-
-var origDist = null;
-var currDist = null;
-
-
 var head = {x: 0, y: 0, z: 0, angle: 90};
+
+var needsInit = true;
+var webcamReady = false;
+var started = false;
 
 var floor;
 var floorH = -200;
 
 var cc;
 
-var ccLEDs = [
-	{p: [100,0,0]},
-	{p: [-100,0,0]}
-	//todo: add 40 positioned LEDs
-	// {p: [x,y,z], n: [0,0,0]}
-];
-
-var camera;
-
-var ccRenderer;
-var ccCamera, ccCameraHelper;
-var ccCamDist = 500;
-var ccScene;
+// cc cam view
+var ccRenderer, ccScene, ccCamera, ccCameraHelper;
+var ccCamDist = 300;
 var _cc;
 
 var origCamDist = 300;
 
-var webcamReady = false;
-var started = false;
+var initial = {
+	x: 0,
+	y: 0,
+	z: 0
+};
 
-var clock = new THREE.Clock();
-var controls;
-
-var theta = 0;
 var BG_COLOR = 0xcccccc;
 
 
@@ -67,7 +58,7 @@ function init() {
 	document.body.appendChild(renderer.domElement);
 
 	scene = new THREE.Scene();
-	scene.fog = new THREE.FogExp2( BG_COLOR, 0.0005 );
+	scene.fog = new THREE.FogExp2( BG_COLOR, 0.0004 );
 
 	if (debug) {
 		var axes = new THREE.AxisHelper(30);
@@ -79,7 +70,7 @@ function init() {
 	camera.position.z = origCamDist;
 	camera.position.y = 0;
 
-	controls = new THREE.OrbitControls(camera);
+	controls = new THREE.OrbitControls(camera, renderer.domElement);
 	controls.maxPolarAngle = Math.PI/2;
 
 	addCCPrototype();
@@ -203,33 +194,18 @@ function setupHeadTracking() {
 		head.y = ev.y.toFixed(2);
 		head.z = ev.z.toFixed(2);
 
-		if (!origDist)
-			origDist = ev.z.toFixed(2);
-
-		var pcs = ['x:', head.x, ' y:', head.y, 'z: ', head.z];
-		var dataStr = pcs.join(' ');
-
-		var _headAngle = (head.angle * (180/Math.PI)).toFixed(1);
+		if (needsInit) {
+			initial.x = head.x;
+			initial.y = head.y;
+			initial.z = head.z;
+			needsInit = false;
+		}
 
 		updateTrackingUI();
 	});
 
 	document.addEventListener('facetrackingEvent', function(ev) {
 		head.angle = ev.angle;
-
-		return;
-
-		// clear canvas
-		overlayContext.clearRect(0,0,320,240);
-		// once we have stable tracking, draw rectangle
-		if (event.detection == "CS") {
-			overlayContext.translate(ev.x, ev.y);
-			overlayContext.rotate(ev.angle-(Math.PI/2));
-			overlayContext.strokeStyle = "#00CC00";
-			overlayContext.strokeRect((-(ev.width/2)) >> 0, (-(ev.height/2)) >> 0, ev.width, ev.height);
-			overlayContext.rotate((Math.PI/2)-ev.angle);
-			overlayContext.translate(-ev.x, -ev.y);
-		}
 	});
 
 }
@@ -244,17 +220,11 @@ function setupCCCamera() {
 	ccRenderer.setSize(320, 240);
 	ccRenderer.setClearColor(0x000000, 0);
 
-	//document.body.appendChild(renderer.domElement);
-
 	ccCamera = new THREE.PerspectiveCamera(50, W/H, 10, 1000);
-	ccCamera.position.z = ccCamDist;
+	ccCamera.position.z = ccCamDist/2;
 	ccScene.add(ccCamera);
 
-	var leds = makeCCLEDs();
-
-	_cc = leds;
-
-	ccScene.add(leds);
+	makeCCLEDs();
 
 	var ccCam = new THREE.PerspectiveCamera(50, W/H, 10, 1000);
 	ccCam.position.z = ccCamDist;
@@ -265,27 +235,23 @@ function setupCCCamera() {
 }
 
 function makeCCLEDs() {
-	var container = new THREE.Object3D();
+	var loader = new THREE.ObjectLoader();
 
-	var color = 0xffffff;
-	var mat = new THREE.MeshBasicMaterial({color: color});
-	
-	var geo = new THREE.SphereGeometry(30, 12, 12);
+	var callbackFinished = function(scene) {
+		var container = new THREE.Object3D();
 
-	for (var i = 0, len = ccLEDs.length; i < len; i++) {
-		var led = ccLEDs[i];
-		var p = led.p;
+		container.add(scene);
 
-		var l = new THREE.Mesh(geo, mat);
-		l.position.set(p[0], p[1], p[2]);
-		container.add(l);
-	}
+		_cc = container;
+		
+		ccScene.add(container);
+	};
 
-	return container;
+	loader.load('models/cc-leds.js', callbackFinished);
 }
 
 function setupIRTracking() {
-	//todo: 
+	//todo: do some tracking
 }
 
 function updateTrackingUI() {
@@ -333,16 +299,8 @@ function setupUI() {
 	$('#reinit-btn').on('click', function(ev){
 			if (!webcamReady) return;
 			htracker.stop();htracker.start();
-			origDist = null;
+			needsInit = true;
 		});
-
-	var $sidebar = $('#sidebar');
-
-	$('#modes').on('click', '.btn', function(ev){
-		var $this = $(ev.currentTarget);
-		$this.siblings().removeClass('selected');
-		$this.addClass('selected');
-	});
 }
 
 function addStats() {
@@ -359,9 +317,9 @@ function addStats() {
 		// Meter position
 		position: 'absolute', // Meter position.
 		zIndex:   10,         // Meter Z index.
-		left:     'auto',      // Meter left offset.
+		left:     '0',      // Meter left offset.
 		top:      'auto',      // Meter top offset.
-		right:    '0',     // Meter right offset.
+		right:    'auto',     	// Meter right offset.
 		bottom:   '0',     // Meter bottom offset.
 		margin:   '0 0 0 0',  // Meter margin. Helps with centering the counter when left: 50%;
 
@@ -391,9 +349,9 @@ function addLights() {
 
 	dl.shadowMapHeight = dl.shadowMapWidth = 1024;
 
-	dl.shadowCameraLeft = -128;
-	dl.shadowCameraRight = 128;
-	dl.shadowCameraTop = 128;
+	dl.shadowCameraLeft = -128*2;
+	dl.shadowCameraRight = 128*3;
+	dl.shadowCameraTop = 128*2;
 	dl.shadowCameraBottom = -128;
 
 	dl.castShadow = true;
@@ -410,41 +368,6 @@ function addLights() {
 	directionalLight.position.normalize();
 
 	scene.add(directionalLight);
-
-	return;
-
-	var light = new THREE.AmbientLight(0xffffff);
-	scene.add(light);
-
-	var pl = new THREE.PointLight(0x3878ff);
-
-	pl.position.x = 100;
-	pl.position.y = 200;
-	pl.position.z = 100;
-
-	window.pl = pl;
-
-	scene.add(pl);
-
-	var dl = new THREE.DirectionalLight(0xFFFFFF);
-
-	dl.position.x = -200;
-	dl.position.y = -200;
-	dl.position.z = 100;
-
-	window.dl = dl;
-
-	scene.add(dl);
-
-	var dl = new THREE.DirectionalLight(0xFFFFFF);
-
-	dl.position.x = 200;
-	dl.position.y = 50;
-	dl.position.z = 200;
-
-	window.dl = dl;
-
-	scene.add(dl);	
 }
 
 function addGround() {
@@ -523,31 +446,12 @@ function addCCPrototype() {
 			shininess: 10,
 			side: THREE.DoubleSide });
 
-		var parameters = {
-			color:  "#000000", // color (change "#" to "0x")
-			colorA: "#000000", // color (change "#" to "0x")
-			colorE: "#000000", // color (change "#" to "0x")
-			colorS: "#ffffff", // color (change "#" to "0x")
-			shininess: 10
-		};
-
-/*		if (mat.ambient)
-			mat.ambient.setHex( parameters.colorA.replace("#", "0x") );
-		if (mat.emissive)
-			mat.emissive.setHex( parameters.colorE.replace("#", "0x") );
-		if (mat.specular)
-			mat.specular.setHex( parameters.colorS.replace("#", "0x") ); 
-		if (mat.shininess)
-			mat.shininess = parameters.shininess;*/
-
 		cc.traverse(function(child) {
 			setMaterial(child, mat);
 
 			child.castShadow = true;
 			child.receiveShadow = false;
 		});
-
-		console.log(cc);
 
 		var s = 20;
 		cc.scale.set(s,s,s);
@@ -568,42 +472,35 @@ function onWindowResize() {
 function animate() {
 	requestAnimationFrame(animate);
 	
-	//controls.update( clock.getDelta() );
+	var delta = clock.getDelta();
+
+	//controls.update(delta);
 	meter.tickStart();
 	
-	theta += 0.004;
-
 	//var ratio = head.z/origDist;
 
 	//var camDist = origCamDist * Math.pow(ratio, 1.5);
 
 	//hack, need to figure out calibration scheme
-	var f = 4;
-
-	/*
-	cc.position.x = head.x*f;
-	cc.position.y = head.y*f;
-	cc.position.z = -head.z*f;
-	*/
-
+	
 	if (webcamReady && started) {
+		cc.position.x = (head.x - initial.x) * 4 * -1;
+		cc.position.y = (head.y - initial.y) * 4 *  1;
+		cc.position.z = (head.z - initial.z) * 3 * -1;
+		_cc.position = cc.position;
+
 		cc.rotation.z = Math.PI/2 - head.angle;
 		_cc.rotation.z = cc.rotation.z;
 	}
-	
-	//camera.lookAt(scene.position);
-	//camera.rotation.z = headAngle - Math.PI/2;
 
 	TWEEN.update();
 
-	renderer.render(scene, camera);
 	
-	if(ccRenderer) {
+	if (ccRenderer) {
 		ccRenderer.render(ccScene, ccCamera);
-		//console.log('cc render');
 	}
 
-	//composer.render();
+	(1) ? composer.render() : renderer.render(scene, camera);
 
 	//stats.update();
 	meter.tick();

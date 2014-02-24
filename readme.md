@@ -4,10 +4,8 @@ a simulator of optical positional tracking, modeled after the oculus crystal cov
 
 ## todo
 
-* write up description and goals
-* IR camera view: what camera would see
-* dynamically adjustable IR camera paramaters: FoV, resolution, framerate
-* tracking using IR camera frame data
-* comparision of IR tracking to known input
-* micro-graphs of tracking data over time
-* 3/4 view to show camera frustum
+* oculus mode: track markers attached to rift
+* implement tracking from IR camera
+* comparision of IR tracking to cam input
+* camera animation
+* demo app using positional tracking

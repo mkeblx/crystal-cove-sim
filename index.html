@@ -31,7 +31,15 @@
 
 <div id="ir-cam-view" class="cam-view">
 	<canvas id="ir-cam" width="320" height="240"></canvas>
-	<div id="ir-tracking-info" class="info-bar">attempting ir tracking&hellip;</div>
+	<div id="ir-tracking-info" class="info-bar">ir tracking uninitialized&hellip; (coming soon)</div>
+
+	<div id="cam-settings">
+		<label>FoV:</label>
+		<input id="fov" type="range" step="5" min="40" max="90">
+		<br>
+		<label>Resolution:</label>
+		<input id="res-h" type="text" placeholder="W" value="1024"><span>✕</span><input id="res-w" type="text" placeholder="H" value="768">
+	</div>
 </div>
 
 <div id="gUMMessage"><!-- checking capabilities&hellip;--></div>
@@ -52,6 +60,11 @@
 </div>
 
 <div id="meter-container">
+</div>
+
+<div id="cred">
+	<span class="pull-right">model &middot; <a target="_blank" href="http://crunchymetal.carbonmade.com">chris nelson</a></span>
+	code &middot; <a target="_blank" href="http://twitter.com/mkeblx">@mkeblx</a>
 </div>
 
 <div id="sidebar" class="hide">
