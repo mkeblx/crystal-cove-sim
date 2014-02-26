@@ -67,7 +67,7 @@ function init() {
 	}
 
 	camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 10, 10000);
-	camera.position.z = origCamDist;
+	camera.position.z = origCamDist-10;
 	camera.position.y = 0;
 
 	controls = new THREE.OrbitControls(camera, renderer.domElement);
@@ -232,6 +232,22 @@ function setupCCCamera() {
 
 	ccCameraHelper = new THREE.CameraHelper(ccCam);
 	scene.add(ccCameraHelper);
+
+	// cam placeholder
+	var geometry = new THREE.SphereGeometry(8, 14, 12);
+	var material = new THREE.MeshPhongMaterial({
+		color: 0x888888,
+		transparent: true,
+		opacity: 0.6,
+		//shading: THREE.SmoothShading,
+		overdraw: true});
+
+	var mesh = new THREE.Mesh(geometry, material);
+	mesh.castShadow = true;
+
+	mesh.position = ccCam.position;
+
+	scene.add(mesh);
 }
 
 function makeCCLEDs() {
